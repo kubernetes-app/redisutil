@@ -5,106 +5,20 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/amadeusitgroup/redis-operator/pkg/api/redis/v1"
-	kapiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	pod1  = &kapiv1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod1", Namespace: "ns"}}
-	pod2  = &kapiv1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod2", Namespace: "ns"}}
-	pod3  = &kapiv1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod3", Namespace: "ns"}}
-	pod4  = &kapiv1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod4", Namespace: "ns"}}
+	pod1  = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod1", Namespace: "ns"}}
+	pod2  = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod2", Namespace: "ns"}}
+	pod3  = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod3", Namespace: "ns"}}
+	pod4  = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "Pod4", Namespace: "ns"}}
 	node1 = NewNode("abcd", "1.2.3.1", pod1)
 	node2 = NewNode("edfg", "1.2.3.2", pod2)
 	node3 = NewNode("igkl", "1.2.3.3", pod3)
 	node4 = NewNode("mnop", "1.2.3.4", pod4)
 )
-
-func TestNode_ToAPINode(t *testing.T) {
-	type fields struct {
-		ID             string
-		IP             string
-		MasterReferent string
-		Slots          []Slot
-		Pod            *kapiv1.Pod
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   v1.RedisClusterNode
-	}{
-		{
-			name: "default test",
-			fields: fields{
-				ID: "id1",
-				IP: "1.2.3.4",
-				Pod: &kapiv1.Pod{
-					ObjectMeta: metav1.ObjectMeta{Name: "name1", Namespace: "NS1"},
-				},
-				Slots: []Slot{},
-			},
-			want: v1.RedisClusterNode{
-				ID:      "id1",
-				IP:      "1.2.3.4",
-				PodName: "name1",
-				Role:    v1.RedisClusterNodeRoleNone,
-				Slots:   []string{},
-			},
-		},
-		{
-			name: "convert a master",
-			fields: fields{
-				ID: "id1",
-				IP: "1.2.3.4",
-				Pod: &kapiv1.Pod{
-					ObjectMeta: metav1.ObjectMeta{Name: "name1", Namespace: "NS1"},
-				},
-				Slots: []Slot{Slot(1), Slot(2)},
-			},
-			want: v1.RedisClusterNode{
-				ID:      "id1",
-				IP:      "1.2.3.4",
-				PodName: "name1",
-				Role:    v1.RedisClusterNodeRoleMaster,
-				Slots:   []string{},
-			},
-		},
-		{
-			name: "convert a slave",
-			fields: fields{
-				ID: "id1",
-				IP: "1.2.3.4",
-				Pod: &kapiv1.Pod{
-					ObjectMeta: metav1.ObjectMeta{Name: "name1", Namespace: "NS1"},
-				},
-				MasterReferent: "idMaster",
-				Slots:          []Slot{},
-			},
-			want: v1.RedisClusterNode{
-				ID:      "id1",
-				IP:      "1.2.3.4",
-				PodName: "name1",
-				Role:    v1.RedisClusterNodeRoleSlave,
-				Slots:   []string{},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			n := &Node{
-				ID:             tt.fields.ID,
-				IP:             tt.fields.IP,
-				Pod:            tt.fields.Pod,
-				MasterReferent: tt.fields.MasterReferent,
-				Slots:          tt.fields.Slots,
-			}
-			if got := n.ToAPINode(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Node.ToAPINode() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestNodes_SortNodes(t *testing.T) {
 	sortedNodes := Nodes{node1, node2, node3, node4}
@@ -149,7 +63,7 @@ func TestNodeSetRoleMasterValid(t *testing.T) {
 	if err != nil {
 		t.Error("Failed to set Master as role [err]:", err)
 	}
-	if node.Role != redisMasterRole {
+	if node.Role != RedisMasterRole {
 		t.Error("Role should be Master")
 	}
 }
@@ -162,7 +76,7 @@ func TestNodeSetRoleSlaveValid(t *testing.T) {
 	if err != nil {
 		t.Error("Failed to set Slave as role [err]:", err)
 	}
-	if node.Role != redisSlaveRole {
+	if node.Role != RedisSlaveRole {
 		t.Error("Role should be Slave")
 	}
 }
@@ -189,7 +103,7 @@ func TestNodeSetRoleMultFlags(t *testing.T) {
 	if err != nil {
 		t.Error("Failed to set Slave as role [err]:", err)
 	}
-	if node.Role != redisSlaveRole {
+	if node.Role != RedisSlaveRole {
 		t.Error("Role should be Slave")
 	}
 }
@@ -299,11 +213,11 @@ func TestNodeSetReferentMasterNone(t *testing.T) {
 }
 func TestNodeWhereP(t *testing.T) {
 	var slice Nodes
-	nodeMaster := &Node{ID: "A", Role: redisMasterRole, Slots: []Slot{0, 1, 4, 10}}
+	nodeMaster := &Node{ID: "A", Role: RedisMasterRole, Slots: []Slot{0, 1, 4, 10}}
 	slice = append(slice, nodeMaster)
-	nodeSlave := &Node{ID: "B", Role: redisSlaveRole, Slots: []Slot{}}
+	nodeSlave := &Node{ID: "B", Role: RedisSlaveRole, Slots: []Slot{}}
 	slice = append(slice, nodeSlave)
-	nodeUnset := &Node{ID: "C", Role: redisMasterRole, Slots: []Slot{}}
+	nodeUnset := &Node{ID: "C", Role: RedisMasterRole, Slots: []Slot{}}
 	slice = append(slice, nodeUnset)
 
 	masterSlice, err := slice.GetNodesByFunc(IsMasterWithSlot)
@@ -342,11 +256,11 @@ func TestNodeWhereP(t *testing.T) {
 
 func TestSearchNodeByID(t *testing.T) {
 	var slice Nodes
-	nodeMaster := &Node{ID: "A", Role: redisMasterRole, Slots: []Slot{0, 1, 4, 10}}
+	nodeMaster := &Node{ID: "A", Role: RedisMasterRole, Slots: []Slot{0, 1, 4, 10}}
 	slice = append(slice, nodeMaster)
-	nodeSlave := &Node{ID: "B", Role: redisSlaveRole, Slots: []Slot{}}
+	nodeSlave := &Node{ID: "B", Role: RedisSlaveRole, Slots: []Slot{}}
 	slice = append(slice, nodeSlave)
-	nodeUnset := &Node{ID: "C", Role: redisMasterRole, Slots: []Slot{}}
+	nodeUnset := &Node{ID: "C", Role: RedisMasterRole, Slots: []Slot{}}
 	slice = append(slice, nodeUnset)
 
 	// empty list

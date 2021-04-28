@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"github.com/amadeusitgroup/redis-operator/pkg/redis"
+	redis "github.com/kubernetes-app/redisutil"
 
 	radix "github.com/mediocregopher/radix.v2/redis"
 )
