@@ -6,7 +6,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: build
+all: tidy fmt vet
 
 ##@ General
 
@@ -28,15 +28,13 @@ help: ## Display this help.
 
 fmt: ## Run go fmt against code.
 	go fmt ./...
+	goimports -w -local github.com/kubernetes-app .
 
 vet: ## Run go vet against code.
 	go vet ./...
 
 tidy: ## Run go mod tidy -v
 	go mod tidy -v
-
-goimports_fmt: ## Run goimports
-	goimports -w -local github.com/kubernetes-app .
 
 FINDFILES=find . \( -path ./.git -o -path ./.github -o -path ./testbin \) -prune -o -type f
 XARGS = xargs -0 ${XARGS_FLAGS}
@@ -49,10 +47,3 @@ ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 test: fmt vet ## Run tests.
 	go test ./... -coverprofile cover.out
 
-##@ Build
-
-build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
-
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go -v=2
