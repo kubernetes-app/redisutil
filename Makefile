@@ -33,17 +33,22 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-tidy: ## Run go mod tidy -v
+tidy: ## Run go mod tidy -v.
 	go mod tidy -v
 
 FINDFILES=find . \( -path ./.git -o -path ./.github -o -path ./testbin \) -prune -o -type f
 XARGS = xargs -0 ${XARGS_FLAGS}
-lint-go: ## Run lint go
+lint-go: ## Run go lint.
 	@${FINDFILES} -name '*.go' \( ! \( -name '*.gen.go' -o -name '*.pb.go' \) \) -print0 | ${XARGS} common/scripts/lint_go.sh
+
+##@ Build
+
+build: ## Run go build.
+	go build -v ./...
 
 ##@ Test
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-test: fmt vet ## Run tests.
+test: fmt vet ## Run go tests.
 	go test ./... -coverprofile cover.out
 
