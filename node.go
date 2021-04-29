@@ -1,7 +1,6 @@
 package redis
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -9,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kubernetes-app/redisutil/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+
+	"github.com/kubernetes-app/redisutil/utils"
 )
 
 // Node Represent a Redis Node
@@ -67,7 +67,7 @@ func NewNode(id, ip string, pod *corev1.Pod) *Node {
 }
 
 // SetRole from a flags string list set the Node's role
-func (n *Node) SetRole(flags string) error {
+func (n *Node) SetRole(flags string) {
 	n.Role = "" // reset value before setting the new one
 	vals := strings.Split(flags, ",")
 	for _, val := range vals {
@@ -78,12 +78,6 @@ func (n *Node) SetRole(flags string) error {
 			n.Role = RedisSlaveRole
 		}
 	}
-
-	if n.Role == "" {
-		return errors.New("Node SetRole failed")
-	}
-
-	return nil
 }
 
 // GetRole return the Redis role
@@ -108,15 +102,21 @@ func (n *Node) GetRole() string {
 // String string representation of a Instance
 func (n *Node) String() string {
 	if n.ServerStartTime.IsZero() {
-		return fmt.Sprintf("{Redis ID: %s, role: %s, master: %s, link: %s, status: %s, addr: %s, slots: %s, len(migratingSlots): %d, len(importingSlots): %d}", n.ID, n.GetRole(), n.MasterReferent, n.LinkState, n.FailStatus, n.IPPort(), SlotSlice(n.Slots), len(n.MigratingSlots), len(n.ImportingSlots))
+		return fmt.Sprintf("{Redis ID: %s, role: %s, master: %s, link: %s, status: %s, addr: %s, slots: %s, len(migratingSlots): %d, len(importingSlots): %d}",
+			n.ID, n.GetRole(), n.MasterReferent, n.LinkState, n.FailStatus, n.IPPort(), SlotSlice(n.Slots), len(n.MigratingSlots), len(n.ImportingSlots))
 	}
-	return fmt.Sprintf("{Redis ID: %s, role: %s, master: %s, link: %s, status: %s, addr: %s, slots: %s, len(migratingSlots): %d, len(importingSlots): %d, ServerStartTime: %s}", n.ID, n.GetRole(), n.MasterReferent, n.LinkState, n.FailStatus, n.IPPort(), SlotSlice(n.Slots), len(n.MigratingSlots), len(n.ImportingSlots), n.ServerStartTime.Format("2006-01-02 15:04:05"))
+	return fmt.Sprintf("{Redis ID: %s, role: %s, master: %s, link: %s, status: %s, addr: %s, slots: %s, len(migratingSlots): %d, len(importingSlots): %d, ServerStartTime: %s}",
+		n.ID, n.GetRole(), n.MasterReferent, n.LinkState, n.FailStatus, n.IPPort(), SlotSlice(n.Slots), len(n.MigratingSlots), len(n.ImportingSlots), n.ServerStartTime.Format("2006-01-02 15:04:05"))
 }
 
 // IPPort returns join Ip Port string
 func (n *Node) IPPort() string {
 	return net.JoinHostPort(n.IP, n.Port)
 }
+
+// FindNodeFunc function for finding a Node
+// it is use as input for GetNodeByFunc and GetNodesByFunc
+type FindNodeFunc func(node *Node) bool
 
 // GetNodesByFunc returns first node found by the FindNodeFunc
 func (n Nodes) GetNodesByFunc(f FindNodeFunc) (Nodes, error) {
@@ -138,7 +138,7 @@ func (n *Node) Clear() {
 }
 
 // SetLinkStatus set the Node link status
-func (n *Node) SetLinkStatus(status string) error {
+func (n *Node) SetLinkStatus(status string) {
 	n.LinkState = "" // reset value before setting the new one
 	switch status {
 	case RedisLinkStateConnected:
@@ -146,12 +146,6 @@ func (n *Node) SetLinkStatus(status string) error {
 	case RedisLinkStateDisconnected:
 		n.LinkState = RedisLinkStateDisconnected
 	}
-
-	if n.LinkState == "" {
-		return errors.New("Node SetLinkStatus failed")
-	}
-
-	return nil
 }
 
 // SetFailureStatus set from inputs flags the possible failure status
@@ -401,4 +395,20 @@ func DecodeNodeInfos(input *string) *Nodes {
 	}
 
 	return &nodes
+}
+
+// DecodeClusterInfos decode from the cmd output the Redis nodes info. Second argument is the node on which we are connected to request info
+func DecodeClusterInfos(input *string) *map[string]string {
+	clusterInfo := make(map[string]string)
+	for _, line := range strings.Split(*input, "\n") {
+		values := strings.Split(line, ":")
+		if len(values) < 2 {
+			// last line is always empty
+			klog.V(2).Infof("Not enough values in line split, ignoring line: '%s'", line)
+			continue
+		} else {
+			clusterInfo[values[0]] = values[1]
+		}
+	}
+	return &clusterInfo
 }

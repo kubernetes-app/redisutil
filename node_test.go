@@ -59,10 +59,8 @@ func TestNodeSetRoleMasterValid(t *testing.T) {
 	node := &Node{}
 
 	flags := "master"
-	err := node.SetRole(flags)
-	if err != nil {
-		t.Error("Failed to set Master as role [err]:", err)
-	}
+	node.SetRole(flags)
+
 	if node.Role != RedisMasterRole {
 		t.Error("Role should be Master")
 	}
@@ -72,10 +70,8 @@ func TestNodeSetRoleSlaveValid(t *testing.T) {
 	node := &Node{}
 
 	flags := "slave"
-	err := node.SetRole(flags)
-	if err != nil {
-		t.Error("Failed to set Slave as role [err]:", err)
-	}
+	node.SetRole(flags)
+
 	if node.Role != RedisSlaveRole {
 		t.Error("Role should be Slave")
 	}
@@ -85,10 +81,7 @@ func TestNodeSetRoleNotValid(t *testing.T) {
 	node := &Node{}
 
 	flags := "king"
-	err := node.SetRole(flags)
-	if err == nil {
-		t.Error("SetRole should return an error ")
-	}
+	node.SetRole(flags)
 
 	if node.Role != "" {
 		t.Error("Role should be empty current:", node.Role)
@@ -99,10 +92,8 @@ func TestNodeSetRoleMultFlags(t *testing.T) {
 	node := &Node{}
 
 	flags := "myself,slave"
-	err := node.SetRole(flags)
-	if err != nil {
-		t.Error("Failed to set Slave as role [err]:", err)
-	}
+	node.SetRole(flags)
+
 	if node.Role != RedisSlaveRole {
 		t.Error("Role should be Slave")
 	}
@@ -112,10 +103,8 @@ func TestNodeSetLinkStatusConnected(t *testing.T) {
 	node := &Node{}
 
 	status := "connected"
-	err := node.SetLinkStatus(status)
-	if err != nil {
-		t.Error("Failed to set link status [err]:", err)
-	}
+	node.SetLinkStatus(status)
+
 	if node.LinkState != RedisLinkStateConnected {
 		t.Error("State should be connected")
 	}
@@ -125,10 +114,8 @@ func TestNodeSetLinkStatusDisconnected(t *testing.T) {
 	node := &Node{}
 
 	status := "disconnected"
-	err := node.SetLinkStatus(status)
-	if err != nil {
-		t.Error("Failed to set link status [err]:", err)
-	}
+	node.SetLinkStatus(status)
+
 	if node.LinkState != RedisLinkStateDisconnected {
 		t.Error("State should be disconnected")
 	}
@@ -138,10 +125,7 @@ func TestNodeSetLinkStatusKO(t *testing.T) {
 	node := &Node{}
 
 	status := "blabla"
-	err := node.SetLinkStatus(status)
-	if err == nil {
-		t.Error("SetLinkStatus should return an error ")
-	}
+	node.SetLinkStatus(status)
 
 	if node.LinkState != "" {
 		t.Error("State should be empty current:", node.LinkState)
@@ -222,7 +206,7 @@ func TestNodeWhereP(t *testing.T) {
 
 	masterSlice, err := slice.GetNodesByFunc(IsMasterWithSlot)
 	if err != nil {
-		t.Error("slice.GetNodesByFunc(IsMasterWithSlot) sould not return an error, current err:", err)
+		t.Error("slice.GetNodesByFunc(IsMasterWithSlot) should not return an error, current err:", err)
 	}
 	if len(masterSlice) != 1 {
 		t.Error("masterSlice should have a size of 1, current:", len(masterSlice))
@@ -233,7 +217,7 @@ func TestNodeWhereP(t *testing.T) {
 
 	unsetSlice, err := slice.GetNodesByFunc(IsMasterWithNoSlot)
 	if err != nil {
-		t.Error("slice.GetNodesByFunc(IsMasterWithSlot) sould not return an error, current err:", err)
+		t.Error("slice.GetNodesByFunc(IsMasterWithSlot) should not return an error, current err:", err)
 	}
 	if len(unsetSlice) != 1 {
 		t.Error("unsetSlice should have a size of 1, current:", len(unsetSlice))
@@ -244,7 +228,7 @@ func TestNodeWhereP(t *testing.T) {
 
 	slaveSlice, err := slice.GetNodesByFunc(IsSlave)
 	if err != nil {
-		t.Error("slice.GetNodesByFunc(IsMasterWithSlot) sould not return an error, current err:", err)
+		t.Error("slice.GetNodesByFunc(IsMasterWithSlot) should not return an error, current err:", err)
 	}
 	if len(slaveSlice) != 1 {
 		t.Error("slaveSlice should have a size of 1, current:", len(slaveSlice))

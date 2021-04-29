@@ -6,8 +6,9 @@ import (
 	"time"
 
 	redis "github.com/go-redis/redis/v8"
-	"github.com/kubernetes-app/redis-cluster-operator/pkg/utils"
 	"k8s.io/klog/v2"
+
+	"github.com/kubernetes-app/redisutil/utils"
 )
 
 const (
@@ -24,13 +25,15 @@ const (
 // AdminInterface redis cluster admin interface
 type AdminInterface interface {
 	// Connections returns the connection map of all clients
-	Connections() *redis.Client
-	// Close the admin connections
-	Close()
-	// CloseCluster the admin connections
-	CloseCluster()
+	// Connections() *redis.Client
+	// CloseClient the admin connections
+	CloseClient()
+	// CloseClusterClient the admin connections
+	CloseClusterClient()
 	// GetClusterInfos get node infos for all nodes
-	GetClusterInfos() (*Nodes, error)
+	GetClusterInfos() (*map[string]string, error)
+	// GetClusterNodes get node infos for all nodes
+	GetClusterNodes() (*Nodes, error)
 	// SetConfigIfNeed set redis config
 	SetConfigIfNeed(newConfig map[string]string) error
 	// GetHashMaxSlot get the max slot value
@@ -80,12 +83,12 @@ func NewClusterClient(addrs []string, password string) *redis.ClusterClient {
 	return redis.NewClusterClient(opt)
 }
 
-// Close used to close all possible resources instanciate by the Admin
+// Close used to close all possible resources instantiate by the Admin
 func (a *Admin) CloseClient() {
 	a.rc.Close()
 }
 
-// Close used to close all possible resources instanciate by the Admin
+// CloseClusterClient used to close all possible resources instantiate by the Admin
 func (a *Admin) CloseClusterClient() {
 	a.rcc.Close()
 }
@@ -96,12 +99,14 @@ func (a *Admin) GetHashMaxSlot() Slot {
 }
 
 // GetClusterInfos return the Nodes infos for all nodes
-func (a *Admin) GetClusterInfos() (*Nodes, error) {
-	nodes, err := a.GetClusterNodes()
+func (a *Admin) GetClusterInfos() (*map[string]string, error) {
+	ctx := context.Background()
+	raw, err := a.rc.ClusterInfo(ctx).Result()
 	if err != nil {
-		klog.Infof("get redis nodes failed: %v", err)
+		return nil, fmt.Errorf("wrong format from CLUSTER INFO: %v", err)
 	}
-	return nodes, err
+	clusterInfos := DecodeClusterInfos(&raw)
+	return clusterInfos, err
 }
 
 var parseConfigMap = map[string]int8{
@@ -146,6 +151,44 @@ func (a *Admin) SetConfigIfNeed(newConfig map[string]string) error {
 	return nil
 }
 
+func SetRedisConfig(ctx context.Context, rc *redis.Client, newConfig map[string]string) error {
+	for key, value := range newConfig {
+		if _, ok := parseConfigMap[key]; ok {
+			value, err := utils.ParseRedisMemConf(value)
+			if err != nil {
+				klog.Errorf("redis config format err, key: %s, value: %s, err: %v", key, value, err)
+				continue
+			}
+		}
+		if err := rc.ConfigSet(ctx, key, value).Err(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// UpdateMasterConfig set redis master config
+func (a *Admin) UpdateMasterConfig(newConfig map[string]string) error {
+	ctx := context.Background()
+	if err := a.rcc.ForEachMaster(ctx, func(ctx context.Context, master *redis.Client) error {
+		return SetRedisConfig(ctx, master, newConfig)
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SetConfigIfNeed set redis config
+func (a *Admin) UpdateSlaveConfig(newConfig map[string]string) error {
+	ctx := context.Background()
+	if err := a.rcc.ForEachSlave(ctx, func(ctx context.Context, slave *redis.Client) error {
+		return SetRedisConfig(ctx, slave, newConfig)
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *Admin) GetClusterNodes() (*Nodes, error) {
 	ctx := context.Background()
 	cmd := a.rc.ClusterNodes(ctx)
@@ -158,7 +201,7 @@ func (a *Admin) GetClusterNodes() (*Nodes, error) {
 	raw, err = cmd.Result()
 
 	if err != nil {
-		return nil, fmt.Errorf("Wrong format from CLUSTER NODES: %v", err)
+		return nil, fmt.Errorf("wrong format from CLUSTER NODES: %v", err)
 	}
 
 	nodeInfos := DecodeNodeInfos(&raw)
